@@ -1,0 +1,4 @@
+{
+  "profile": "python",
+  "sandbox_dir": "sandboxes/test-fastapi"
+}
