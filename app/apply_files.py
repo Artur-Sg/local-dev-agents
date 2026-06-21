@@ -2,7 +2,9 @@ import re
 import sys
 from pathlib import Path
 
+from roles import require_action
 from settings import ROOT, get_sandbox_dir
+from workflow import run_as
 
 TARGET_DIR = get_sandbox_dir()
 
@@ -61,6 +63,8 @@ def is_safe_relative_path(path: str) -> bool:
     return True
 
 def apply_files(text: str) -> list[Path]:
+    require_action("write_files")
+
     written = []
 
     for match in FILE_RE.finditer(text):
@@ -83,7 +87,7 @@ def apply_files(text: str) -> list[Path]:
 
 def main() -> None:
     text = sys.stdin.read()
-    written = apply_files(text)
+    written = run_as("developer", apply_files, text)
 
     print("Written files:")
     for path in written:

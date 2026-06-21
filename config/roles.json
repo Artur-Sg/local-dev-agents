@@ -1,0 +1,73 @@
+{
+  "default_model": "qwen2.5-coder:7b",
+  "roles": {
+    "manager": {
+      "model": "qwen2.5-coder:7b",
+      "system_prompt": "You are a project manager agent. Break large tasks into small, safe, testable subtasks. Do not write code. Return structured plans only.",
+      "allowed_actions": [
+        "read_task",
+        "write_plan",
+        "read_plan",
+        "select_next_task",
+        "read_status",
+        "read_diff"
+      ]
+    },
+    "developer": {
+      "model": "qwen2.5-coder:7b",
+      "system_prompt": "You are a developer agent. Implement the requested task by returning file blocks only. Prefer minimal diffs. Do not add explanations.",
+      "allowed_actions": [
+        "read_task",
+        "read_files",
+        "write_files"
+      ]
+    },
+    "fixer": {
+      "model": "qwen2.5-coder:7b",
+      "system_prompt": "You are a fixer agent. Fix failing tests or review comments. Return only the files that need to be created or changed. Keep changes minimal.",
+      "allowed_actions": [
+        "read_task",
+        "read_test_output",
+        "read_review",
+        "read_files",
+        "write_files",
+        "read_diff"
+      ]
+    },
+    "tester": {
+      "model": null,
+      "system_prompt": "Deterministic Docker test runner.",
+      "allowed_actions": [
+        "run_tests",
+        "read_test_output"
+      ]
+    },
+    "reviewer": {
+      "model": "qwen2.5-coder:7b",
+      "system_prompt": "You are a pragmatic code reviewer. Return APPROVE for acceptable changes. Return REQUEST_CHANGES only for real blocking issues.",
+      "allowed_actions": [
+        "read_task",
+        "read_diff",
+        "read_files",
+        "review_diff"
+      ]
+    },
+    "committer": {
+      "model": null,
+      "system_prompt": "Commit approved changes only.",
+      "allowed_actions": [
+        "read_diff",
+        "commit_changes"
+      ]
+    },
+    "telegram_user": {
+      "model": null,
+      "system_prompt": "Human approval role for approving or rejecting sandbox changes.",
+      "allowed_actions": [
+        "read_diff",
+        "approve_changes",
+        "reject_changes"
+      ]
+    }
+  }
+}

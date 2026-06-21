@@ -1,6 +1,8 @@
 import subprocess
 
+from roles import require_action
 from settings import get_sandbox_dir
+from workflow import Step, clear_trace, run_step
 
 SANDBOX_DIR = get_sandbox_dir()
 
@@ -19,9 +21,22 @@ def run(cmd: list[str]) -> str:
     return proc.stdout
 
 
-def main() -> None:
+def reject_changes() -> None:
+    require_action("reject_changes")
     run(["git", "restore", "."])
     run(["git", "clean", "-fd"])
+
+
+def main() -> None:
+    clear_trace()
+    run_step(
+        Step(
+            name="reject_request",
+            action="reject_changes",
+            role="telegram_user",
+            func=reject_changes,
+        )
+    )
     print("Rejected agent changes. Working tree restored.")
 
 

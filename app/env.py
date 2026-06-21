@@ -4,8 +4,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ENV_PATH = ROOT / ".env"
 
-DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434/api/chat"
-DEFAULT_OLLAMA_MODEL = "qwen2.5-coder:7b"
+DEFAULT_MODEL_API_URL = "http://127.0.0.1:11434/api/chat"
+DEFAULT_MODEL_NAME = "qwen2.5-coder:7b"
 DEFAULT_AGENT_MAX_ATTEMPTS = 5
 DEFAULT_AGENT_HTTP_TIMEOUT = 180
 
@@ -51,12 +51,12 @@ def get_env_int(name: str, default: int) -> int:
         return default
 
 
-def get_ollama_url() -> str:
-    return get_env("OLLAMA_URL", DEFAULT_OLLAMA_URL)
+def get_model_api_url() -> str:
+    return get_env("MODEL_API_URL", DEFAULT_MODEL_API_URL)
 
 
-def get_ollama_model() -> str:
-    return get_env("OLLAMA_DEFAULT_MODEL", DEFAULT_OLLAMA_MODEL)
+def get_default_model_name() -> str:
+    return get_env("MODEL_DEFAULT_NAME", DEFAULT_MODEL_NAME)
 
 
 def get_agent_http_timeout() -> int:

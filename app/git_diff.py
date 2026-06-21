@@ -1,11 +1,15 @@
 import subprocess
 
+from roles import require_action
 from settings import get_sandbox_dir
+from workflow import run_as
 
 SANDBOX_DIR = get_sandbox_dir()
 
 
 def get_git_diff() -> str:
+    require_action("read_diff")
+
     proc = subprocess.run(
         ["git", "diff", "--", "."],
         cwd=SANDBOX_DIR,
@@ -18,7 +22,7 @@ def get_git_diff() -> str:
 
 
 def main() -> None:
-    print(get_git_diff())
+    print(run_as("manager", get_git_diff))
 
 
 if __name__ == "__main__":

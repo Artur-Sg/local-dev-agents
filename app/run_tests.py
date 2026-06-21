@@ -1,11 +1,15 @@
 import subprocess
 
+from roles import require_action
 from settings import get_sandbox_dir
+from workflow import run_as
 
 SANDBOX_DIR = get_sandbox_dir()
 
 
 def run_tests() -> tuple[int, str]:
+    require_action("run_tests")
+
     proc = subprocess.run(
         ["./run_tests.sh"],
         cwd=SANDBOX_DIR,
@@ -18,7 +22,7 @@ def run_tests() -> tuple[int, str]:
 
 
 def main() -> None:
-    code, output = run_tests()
+    code, output = run_as("tester", run_tests)
     print(output)
     raise SystemExit(code)
 

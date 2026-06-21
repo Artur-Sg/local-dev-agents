@@ -2,28 +2,32 @@ import json
 import urllib.request
 from pathlib import Path
 
-from env import get_agent_http_timeout, get_ollama_model, get_ollama_url
+from env import get_agent_http_timeout, get_model_api_url
+from roles import get_role_config
+from runtime import get_current_role
+from workflow import run_as
 
 ROOT = Path(__file__).resolve().parents[1]
 TASK_PATH = ROOT / "tasks" / "task.md"
-OLLAMA_URL = get_ollama_url()
-OLLAMA_MODEL = get_ollama_model()
+MODEL_API_URL = get_model_api_url()
 HTTP_TIMEOUT = get_agent_http_timeout()
 
 
-def call_ollama(prompt: str) -> str:
+def call_model(prompt: str) -> str:
+    role = get_current_role()
+    role_config = get_role_config(role)
+    model = role_config["model"]
+
+    if not model:
+        raise ValueError(f"Role {role} does not define a model for model calls")
+
     payload = {
-        "model": OLLAMA_MODEL,
+        "model": model,
         "stream": False,
         "messages": [
             {
                 "role": "system",
-                "content": (
-                    "You are a careful coding assistant. "
-                    "Return only requested file blocks. "
-                    "Do not add explanations. "
-                    "Do not use markdown code fences."
-                ),
+                "content": role_config["system_prompt"],
             },
             {
                 "role": "user",
@@ -34,7 +38,7 @@ def call_ollama(prompt: str) -> str:
 
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(
-        OLLAMA_URL,
+        MODEL_API_URL,
         data=data,
         headers={"Content-Type": "application/json"},
         method="POST",
@@ -48,7 +52,7 @@ def call_ollama(prompt: str) -> str:
 
 def main() -> None:
     prompt = TASK_PATH.read_text(encoding="utf-8")
-    answer = call_ollama(prompt)
+    answer = run_as("developer", call_model, prompt)
     print(answer)
 
 

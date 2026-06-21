@@ -1,42 +1,33 @@
-from ask_ollama import call_ollama
 from git_diff import get_git_diff
+from model_client import call_model
+from prompts import render_prompt
+from workflow import Step, run_step
 
 
 def review_diff() -> str:
-    diff = get_git_diff()
+    diff = run_step(
+        Step(
+            name="review_read_diff",
+            action="read_diff",
+            role="reviewer",
+            func=get_git_diff,
+        )
+    )
 
     if not diff.strip():
         return "APPROVE\nNo changes to review."
 
-    prompt = f"""
-You are a strict code reviewer.
-For this test run, always return REQUEST_CHANGES and ask to remove unnecessary blank lines.
+    prompt = render_prompt("review_user_prompt", diff=diff)
 
-Review this git diff.
-
-Focus on:
-- correctness
-- unnecessary changes
-- test quality
-- imports
-- security risks
-- whether the change satisfies the task
-
-Return exactly one of:
-
-APPROVE
-<short reason>
-
-or
-
-REQUEST_CHANGES
-<short reason>
-
-Git diff:
-{diff}
-""".strip()
-
-    return call_ollama(prompt)
+    return run_step(
+        Step(
+            name="review_decide",
+            action="review_diff",
+            role="reviewer",
+            func=call_model,
+            args=(prompt,),
+        )
+    )
 
 
 def main() -> None:
