@@ -1,0 +1,34 @@
+{
+  "actors": {
+    "project_lead": {
+      "display_name": "Project Lead",
+      "emoji": "🎛",
+      "voice": "calm, organized, concise"
+    },
+    "developer": {
+      "display_name": "Developer",
+      "emoji": "👨‍💻",
+      "voice": "practical, focused, implementation-oriented"
+    },
+    "qa_engineer": {
+      "display_name": "QA Engineer",
+      "emoji": "🧪",
+      "voice": "precise, test-focused"
+    },
+    "reviewer": {
+      "display_name": "Reviewer",
+      "emoji": "🔎",
+      "voice": "strict but pragmatic"
+    },
+    "human_operator": {
+      "display_name": "Human",
+      "emoji": "🙋",
+      "voice": "brief, decisive"
+    },
+    "system": {
+      "display_name": "Committer",
+      "emoji": "🤖",
+      "voice": "short technical updates"
+    }
+  }
+}

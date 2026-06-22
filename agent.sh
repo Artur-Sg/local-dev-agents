@@ -3,23 +3,27 @@ set -euo pipefail
 
 case "${1:-}" in
   run)
-    python3 app/run_agent_loop.py
+    PYTHONPATH=app python3 app/commands/run.py
+    ;;
+  once)
+    PYTHONPATH=app python3 app/run_agent_once.py
     ;;
   approve)
-    python3 app/approve.py
+    PYTHONPATH=app python3 app/commands/approve.py
     ;;
   reject)
-    python3 app/reject.py
+    PYTHONPATH=app python3 app/commands/reject.py
     ;;
   diff)
-    python3 app/git_diff.py
+    PYTHONPATH=app python3 app/commands/status.py diff
     ;;
   test)
-    python3 app/run_tests.py
+    PYTHONPATH=app python3 app/adapters/docker.py
     ;;
   *)
     echo "Usage:"
     echo "  ./agent.sh run"
+    echo "  ./agent.sh once"
     echo "  ./agent.sh diff"
     echo "  ./agent.sh test"
     echo "  ./agent.sh approve"

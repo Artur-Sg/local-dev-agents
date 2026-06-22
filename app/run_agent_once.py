@@ -1,56 +1,87 @@
-from apply_files import apply_files
-from model_client import call_model
-from run_tests import run_tests
-from workflow import Step, clear_trace, run_step
+from agents.developer import generate_solution
+from adapters.docker import run_tests
+from core.actions import CALL_MODEL, READ_TASK, RUN_TESTS, WRITE_FILES
+from core.capabilities import GENERATE_SOLUTION, PREPARE_TASK, RUN_TESTS as RUN_TESTS_CAPABILITY
+from core.events import AgentEvent, emit_event
+from core.workflow import Step, clear_trace, run_step
+from file_blocks import write_file_blocks
 from pathlib import Path
+from reporters.console import setup_console_reporting
+from task_source import read_current_task
 
 ROOT = Path(__file__).resolve().parents[1]
-TASK_PATH = ROOT / "tasks" / "task.md"
 
 
 def main() -> None:
+    setup_console_reporting()
     clear_trace()
-    prompt = TASK_PATH.read_text(encoding="utf-8")
+    emit_event(AgentEvent(role="orchestrator", type="task_started", status="started"))
+    prompt = run_step(
+        Step(
+            name="read_current_task",
+            action=READ_TASK,
+            role="orchestrator",
+            capability=PREPARE_TASK,
+            func=read_current_task,
+        )
+    )
+    emit_event(AgentEvent(role="orchestrator", type="task_loaded", status="ok"))
 
-    print("=== Asking Model ===")
+    emit_event(
+        AgentEvent(
+            role="developer",
+            type="generation_started",
+            payload={"capability": GENERATE_SOLUTION},
+            status="started",
+        )
+    )
     answer = run_step(
         Step(
             name="generate_solution",
-            action="call_model",
+            action=CALL_MODEL,
             role="developer",
-            func=call_model,
+            capability=GENERATE_SOLUTION,
+            func=generate_solution,
             args=(prompt,),
         )
     )
 
-    print("=== Applying files ===")
     written = run_step(
         Step(
             name="apply_solution_files",
-            action="write_files",
+            action=WRITE_FILES,
             role="developer",
-            func=apply_files,
+            capability=GENERATE_SOLUTION,
+            func=write_file_blocks,
             args=(answer,),
         )
     )
-    for path in written:
-        print(f"- {path.relative_to(ROOT)}")
+    emit_event(
+        AgentEvent(
+            role="developer",
+            type="files_written",
+            payload={"files": [str(path.relative_to(ROOT)) for path in written]},
+            status="ok",
+        )
+    )
 
-    print("=== Running tests ===")
+    emit_event(AgentEvent(role="tester", type="tests_started", status="started"))
     code, output = run_step(
         Step(
             name="run_tests",
-            action="run_tests",
+            action=RUN_TESTS,
             role="tester",
+            capability=RUN_TESTS_CAPABILITY,
             func=run_tests,
         )
     )
-    print(output)
+    test_event_type = "tests_passed" if code == 0 else "tests_failed"
+    emit_event(AgentEvent(role="tester", type=test_event_type, payload={"output": output}, status="ok" if code == 0 else "failed"))
 
     if code == 0:
-        print("=== RESULT: PASS ===")
+        emit_event(AgentEvent(role="orchestrator", type="workflow_pass", status="ok"))
     else:
-        print("=== RESULT: FAIL ===")
+        emit_event(AgentEvent(role="tester", type="workflow_fail", status="failed"))
 
     raise SystemExit(code)
 

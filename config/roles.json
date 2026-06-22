@@ -1,73 +1,178 @@
 {
   "default_model": "qwen2.5-coder:7b",
   "roles": {
-    "manager": {
-      "model": "qwen2.5-coder:7b",
-      "system_prompt": "You are a project manager agent. Break large tasks into small, safe, testable subtasks. Do not write code. Return structured plans only.",
+    "orchestrator": {
+      "actor": "project_lead",
+      "model": null,
+      "persona_prompt": "roles/project_lead/persona.md",
       "allowed_actions": [
         "read_task",
         "write_plan",
         "read_plan",
         "select_next_task",
         "read_status",
-        "read_diff"
-      ]
+        "read_diff",
+        "read_changes"
+      ],
+      "capabilities": {
+        "prepare_task": {
+          "prompt": "roles/project_lead/prepare_task.md",
+          "actions": [
+            "read_task",
+            "read_status"
+          ]
+        },
+        "inspect_changes": {
+          "prompt": "roles/project_lead/inspect_changes.md",
+          "actions": [
+            "read_changes"
+          ]
+        }
+      }
     },
     "developer": {
+      "actor": "developer",
       "model": "qwen2.5-coder:7b",
-      "system_prompt": "You are a developer agent. Implement the requested task by returning file blocks only. Prefer minimal diffs. Do not add explanations.",
+      "persona_prompt": "roles/developer/persona.md",
       "allowed_actions": [
         "read_task",
+        "call_model",
         "read_files",
-        "write_files"
-      ]
-    },
-    "fixer": {
-      "model": "qwen2.5-coder:7b",
-      "system_prompt": "You are a fixer agent. Fix failing tests or review comments. Return only the files that need to be created or changed. Keep changes minimal.",
-      "allowed_actions": [
-        "read_task",
         "read_test_output",
         "read_review",
-        "read_files",
-        "write_files",
-        "read_diff"
-      ]
+        "read_changes",
+        "write_files"
+      ],
+      "capabilities": {
+        "generate_solution": {
+          "prompt": "roles/developer/generate_solution.md",
+          "actions": [
+            "call_model",
+            "read_task",
+            "write_files"
+          ]
+        },
+        "fix_tests": {
+          "prompt": "roles/developer/fix_tests.md",
+          "actions": [
+            "call_model",
+            "read_task",
+            "read_test_output",
+            "write_files"
+          ]
+        },
+        "fix_review": {
+          "prompt": "roles/developer/fix_review.md",
+          "actions": [
+            "call_model",
+            "read_task",
+            "read_review",
+            "read_changes",
+            "write_files"
+          ]
+        }
+      }
     },
     "tester": {
+      "actor": "qa_engineer",
       "model": null,
-      "system_prompt": "Deterministic Docker test runner.",
+      "persona_prompt": "",
       "allowed_actions": [
         "run_tests",
         "read_test_output"
-      ]
+      ],
+      "capabilities": {
+        "run_tests": {
+          "prompt": "",
+          "actions": [
+            "run_tests",
+            "read_test_output"
+          ]
+        }
+      }
     },
     "reviewer": {
+      "actor": "reviewer",
       "model": "qwen2.5-coder:7b",
-      "system_prompt": "You are a pragmatic code reviewer. Return APPROVE for acceptable changes. Return REQUEST_CHANGES only for real blocking issues.",
+      "persona_prompt": "roles/reviewer/persona.md",
       "allowed_actions": [
         "read_task",
+        "call_model",
+        "read_changes",
         "read_diff",
         "read_files",
         "review_diff"
-      ]
+      ],
+      "capabilities": {
+        "review_changes": {
+          "prompt": "roles/reviewer/review_changes.md",
+          "actions": [
+            "call_model",
+            "read_changes",
+            "review_diff"
+          ]
+        }
+      }
     },
-    "committer": {
+    "system_committer": {
+      "actor": "system",
       "model": null,
-      "system_prompt": "Commit approved changes only.",
+      "persona_prompt": "",
       "allowed_actions": [
+        "read_status",
+        "read_changes",
         "read_diff",
-        "commit_changes"
-      ]
+        "commit_changes",
+        "restore_changes"
+      ],
+      "capabilities": {
+        "commit_approved_changes": {
+          "prompt": "",
+          "actions": [
+            "read_status",
+            "read_diff",
+            "commit_changes"
+          ]
+        },
+        "restore_rejected_changes": {
+          "prompt": "",
+          "actions": [
+            "restore_changes"
+          ]
+        }
+      }
     },
-    "telegram_user": {
+    "human_operator": {
+      "actor": "human_operator",
       "model": null,
-      "system_prompt": "Human approval role for approving or rejecting sandbox changes.",
+      "persona_prompt": "",
       "allowed_actions": [
+        "read_status",
+        "read_changes",
         "read_diff",
         "approve_changes",
         "reject_changes"
-      ]
+      ],
+      "capabilities": {
+        "inspect_changes": {
+          "prompt": "",
+          "actions": [
+            "read_changes"
+          ]
+        },
+        "approve_changes": {
+          "prompt": "",
+          "actions": [
+            "approve_changes"
+          ]
+        },
+        "reject_changes": {
+          "prompt": "",
+          "actions": [
+            "reject_changes"
+          ]
+        }
+      }
     }
   }
 }

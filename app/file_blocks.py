@@ -1,12 +1,15 @@
 import re
 import sys
+from fnmatch import fnmatch
 from pathlib import Path
 
-from roles import require_action
-from settings import ROOT, get_sandbox_dir
-from workflow import run_as
+from core.actions import WRITE_FILES
+from core.roles import require_action
+from core.settings import ROOT, get_allowed_write_paths, get_project_dir
+from core.workflow import Step, run_step
 
-TARGET_DIR = get_sandbox_dir()
+TARGET_DIR = get_project_dir()
+ALLOWED_WRITE_PATHS = get_allowed_write_paths()
 
 FILE_RE = re.compile(
     r"^### FILE:\s*(?P<path>[^\n]+)\n(?P<content>.*?)(?=^### FILE:|\Z)",
@@ -26,6 +29,7 @@ def clean_content(content: str) -> str:
         content = "\n".join(lines)
 
     return content.rstrip() + "\n"
+
 
 def is_safe_relative_path(path: str) -> bool:
     p = Path(path)
@@ -62,8 +66,17 @@ def is_safe_relative_path(path: str) -> bool:
 
     return True
 
-def apply_files(text: str) -> list[Path]:
-    require_action("write_files")
+
+def is_allowed_write_path(path: str, allowed_paths: list[str]) -> bool:
+    if not allowed_paths:
+        return True
+
+    normalized_path = Path(path).as_posix()
+    return any(fnmatch(normalized_path, pattern) for pattern in allowed_paths)
+
+
+def write_file_blocks(text: str) -> list[Path]:
+    require_action(WRITE_FILES)
 
     written = []
 
@@ -73,6 +86,9 @@ def apply_files(text: str) -> list[Path]:
 
         if not is_safe_relative_path(rel_path):
             raise ValueError(f"Unsafe path: {rel_path}")
+
+        if not is_allowed_write_path(rel_path, ALLOWED_WRITE_PATHS):
+            raise ValueError(f"Path is not allowed for this project: {rel_path}")
 
         out_path = TARGET_DIR / rel_path
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -87,7 +103,15 @@ def apply_files(text: str) -> list[Path]:
 
 def main() -> None:
     text = sys.stdin.read()
-    written = run_as("developer", apply_files, text)
+    written = run_step(
+        Step(
+            name="write_file_blocks_once",
+            action=WRITE_FILES,
+            role="developer",
+            func=write_file_blocks,
+            args=(text,),
+        )
+    )
 
     print("Written files:")
     for path in written:

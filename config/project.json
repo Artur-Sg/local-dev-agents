@@ -1,4 +1,10 @@
 {
-  "profile": "python",
-  "sandbox_dir": "sandboxes/test-fastapi"
+  "profile": "static-html",
+  "sandbox_dir": "sandboxes/test-fastapi",
+  "project_dir": ".",
+  "allowed_write_paths": [
+    "index.html",
+    "styles.css",
+    "tests/test_landing.py"
+  ]
 }

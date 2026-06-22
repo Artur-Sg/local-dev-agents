@@ -1,22 +1,23 @@
-import json
+from pathlib import Path
 
-from settings import ROOT
+from core.settings import ROOT
 
-PROMPTS_CONFIG_PATH = ROOT / "config" / "prompts.json"
+PROMPTS_DIR = ROOT / "config" / "prompts"
 
 
-def load_prompts_config() -> dict:
-    if not PROMPTS_CONFIG_PATH.exists():
-        raise FileNotFoundError(f"Missing prompts config: {PROMPTS_CONFIG_PATH}")
+def get_prompt_path(name: str) -> Path:
+    path = PROMPTS_DIR / f"{name}.md"
 
-    return json.loads(PROMPTS_CONFIG_PATH.read_text(encoding="utf-8"))
+    if not path.exists():
+        raise FileNotFoundError(f"Missing prompt template: {path}")
+
+    return path
 
 
 def get_prompt_template(name: str) -> str:
-    config = load_prompts_config()
-    template = config.get(name)
+    template = get_prompt_path(name).read_text(encoding="utf-8")
 
-    if not isinstance(template, str) or not template.strip():
+    if not template.strip():
         raise ValueError(f"Missing or invalid prompt template: {name}")
 
     return template
