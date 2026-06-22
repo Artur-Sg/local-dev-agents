@@ -3,15 +3,15 @@ import subprocess
 from adapters.git import has_uncommitted_changes
 from core.actions import APPROVE_CHANGES, COMMIT_CHANGES, READ_DIFF, READ_STATUS, REJECT_CHANGES, RESTORE_CHANGES
 from core.roles import require_action
-from core.settings import get_sandbox_dir
+from core.settings import get_project_dir
 
-SANDBOX_DIR = get_sandbox_dir()
+PROJECT_DIR = get_project_dir()
 
 
 def run_git_command(cmd: list[str]) -> str:
     proc = subprocess.run(
         cmd,
-        cwd=SANDBOX_DIR,
+        cwd=PROJECT_DIR,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

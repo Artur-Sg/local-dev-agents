@@ -15,6 +15,30 @@ MODEL_API_URL = get_model_api_url()
 HTTP_TIMEOUT = get_agent_http_timeout()
 
 
+def request_model(model: str, system_prompt: str, user_prompt: str) -> str:
+    payload = {
+        "model": model,
+        "stream": False,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+    }
+
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        MODEL_API_URL,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as response:
+        result = json.loads(response.read().decode("utf-8"))
+
+    return result["message"]["content"]
+
+
 def call_model(prompt: str) -> str:
     require_action(CALL_MODEL)
 
@@ -31,27 +55,7 @@ def call_model(prompt: str) -> str:
 
     get_capability_config(role, capability)
 
-    payload = {
-        "model": model,
-        "stream": False,
-        "messages": [
-            {"role": "system", "content": build_system_prompt(role, capability)},
-            {"role": "user", "content": prompt},
-        ],
-    }
-
-    data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        MODEL_API_URL,
-        data=data,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-
-    with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as response:
-        result = json.loads(response.read().decode("utf-8"))
-
-    return result["message"]["content"]
+    return request_model(model, build_system_prompt(role, capability), prompt)
 
 
 def main() -> None:

@@ -1,4 +1,5 @@
 import subprocess
+import shlex
 
 from core.actions import RUN_TESTS
 from core.capabilities import RUN_TESTS as RUN_TESTS_CAPABILITY
@@ -14,6 +15,14 @@ TEST_RUNNER = get_test_runner()
 
 def run_tests() -> tuple[int, str]:
     require_action(RUN_TESTS)
+
+    setup_commands = TEST_RUNNER["setup_commands"]
+    base_command = shlex.join(TEST_RUNNER["command"])
+    if setup_commands:
+        joined_setup = " && ".join(setup_commands)
+        runner_command = ["sh", "-lc", f"{joined_setup} && {base_command}"]
+    else:
+        runner_command = TEST_RUNNER["command"]
 
     command = [
         "docker",
@@ -34,7 +43,7 @@ def run_tests() -> tuple[int, str]:
         "-w",
         "/workspace",
         TEST_RUNNER["image"],
-        *TEST_RUNNER["command"],
+        *runner_command,
     ]
 
     proc = subprocess.run(

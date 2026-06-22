@@ -1,0 +1,27 @@
+{
+  "allowed_write_paths": [
+    "index.html",
+    "styles.css",
+    "tests/test_landing.py"
+  ],
+  "task_overlay": "tasks/profiles/static-html.md",
+  "test_runner": {
+    "type": "docker",
+    "image": "local-dev-agent-python:3.12",
+    "setup_commands": [
+      "python -m pip install --quiet pytest beautifulsoup4"
+    ],
+    "command": [
+      "pytest",
+      "-q"
+    ]
+  },
+  "visual_review": {
+    "files": [
+      "index.html",
+      "styles.css",
+      "tests/test_landing.py"
+    ],
+    "prompt": "profiles/static-html/review_context.md"
+  }
+}

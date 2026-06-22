@@ -3,6 +3,7 @@ from adapters.ollama import call_model
 from core.actions import READ_CHANGES, REVIEW_DIFF
 from core.capabilities import REVIEW_CHANGES
 from prompts import render_prompt
+from review_context import build_visual_review_context
 from core.workflow import Step, run_step
 
 
@@ -10,7 +11,11 @@ def review_changes(diff: str) -> str:
     if not diff.strip():
         return "APPROVE\nNo changes to review."
 
-    prompt = render_prompt("review_user", diff=diff)
+    prompt = render_prompt(
+        "review_user",
+        diff=diff,
+        visual_context=build_visual_review_context(),
+    )
     return call_model(prompt)
 
 

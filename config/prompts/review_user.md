@@ -34,3 +34,6 @@ REQUEST_CHANGES
 
 Git diff:
 {diff}
+
+Additional visual/web context:
+{visual_context}

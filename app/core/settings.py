@@ -3,20 +3,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 PROJECT_CONFIG_PATH = ROOT / "config" / "project.json"
+PROFILES_DIR = ROOT / "config" / "profiles"
 
 
 def load_project_config() -> dict:
     if not PROJECT_CONFIG_PATH.exists():
         return {
-            "profile": "python",
-            "sandbox_dir": "sandboxes/test-fastapi",
-            "project_dir": ".",
-            "test_runner": {
-                "type": "docker",
-                "image": "local-dev-agent-python:3.12",
-                "command": ["pytest", "-q"],
-            },
-            "allowed_write_paths": [],
+            "profile": "static-html",
+            "sandbox_dir": "sandboxes",
+            "project_dir": "static-bakery",
         }
 
     return json.loads(PROJECT_CONFIG_PATH.read_text(encoding="utf-8"))
@@ -24,12 +19,22 @@ def load_project_config() -> dict:
 
 def get_profile() -> str:
     config = load_project_config()
-    return config.get("profile", "python")
+    return config.get("profile", "static-html")
+
+
+def load_profile_config() -> dict:
+    profile = get_profile()
+    profile_path = PROFILES_DIR / f"{profile}.json"
+
+    if not profile_path.exists():
+        raise FileNotFoundError(f"Missing profile config: {profile_path}")
+
+    return json.loads(profile_path.read_text(encoding="utf-8"))
 
 
 def get_sandbox_dir() -> Path:
     config = load_project_config()
-    sandbox_dir = config.get("sandbox_dir", "sandboxes/test-fastapi")
+    sandbox_dir = config.get("sandbox_dir", "sandboxes")
     path = ROOT / sandbox_dir
 
     resolved_root = ROOT.resolve()
@@ -59,7 +64,7 @@ def get_project_dir() -> Path:
 
 
 def get_allowed_write_paths() -> list[str]:
-    config = load_project_config()
+    config = load_profile_config()
     allowed_paths = config.get("allowed_write_paths", [])
 
     if not isinstance(allowed_paths, list) or not all(
@@ -71,7 +76,7 @@ def get_allowed_write_paths() -> list[str]:
 
 
 def get_test_runner() -> dict:
-    config = load_project_config()
+    config = load_profile_config()
     test_runner = config.get("test_runner", {})
 
     if not isinstance(test_runner, dict):
@@ -80,6 +85,7 @@ def get_test_runner() -> dict:
     runner_type = test_runner.get("type", "")
     image = test_runner.get("image", "")
     command = test_runner.get("command", [])
+    setup_commands = test_runner.get("setup_commands", [])
 
     if runner_type != "docker":
         raise ValueError(f"Unsupported test_runner type: {runner_type}")
@@ -92,8 +98,49 @@ def get_test_runner() -> dict:
     ):
         raise ValueError("test_runner.command must be a list of non-empty strings")
 
+    if not isinstance(setup_commands, list) or not all(
+        isinstance(part, str) and part.strip() for part in setup_commands
+    ):
+        raise ValueError("test_runner.setup_commands must be a list of non-empty strings")
+
     return {
         "type": runner_type,
         "image": image,
+        "setup_commands": setup_commands,
         "command": command,
+    }
+
+
+def get_task_overlay_path() -> Path | None:
+    config = load_profile_config()
+    task_overlay = config.get("task_overlay", "").strip()
+
+    if not task_overlay:
+        return None
+
+    path = ROOT / task_overlay
+    if not path.exists():
+        raise FileNotFoundError(f"Missing task overlay: {path}")
+
+    return path
+
+
+def get_visual_review_config() -> dict:
+    config = load_profile_config()
+    visual_review = config.get("visual_review", {})
+
+    if not isinstance(visual_review, dict):
+        raise ValueError("visual_review must be an object")
+
+    files = visual_review.get("files", [])
+    prompt = visual_review.get("prompt", "").strip()
+
+    if not isinstance(files, list) or not all(
+        isinstance(path, str) and path.strip() for path in files
+    ):
+        raise ValueError("visual_review.files must be a list of non-empty strings")
+
+    return {
+        "files": files,
+        "prompt": prompt,
     }

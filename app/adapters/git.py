@@ -5,17 +5,17 @@ from core.actions import READ_CHANGES, READ_DIFF, READ_STATUS
 from core.capabilities import INSPECT_CHANGES, PREPARE_TASK
 from core.events import AgentEvent, emit_event
 from core.roles import require_action
-from core.settings import get_sandbox_dir
+from core.settings import get_project_dir
 from core.workflow import Step, run_step
 from reporters.console import setup_console_reporting
 
-SANDBOX_DIR = get_sandbox_dir()
+PROJECT_DIR = get_project_dir()
 
 
 def _git_diff() -> str:
     proc = subprocess.run(
         ["git", "diff", "--", "."],
-        cwd=SANDBOX_DIR,
+        cwd=PROJECT_DIR,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -27,7 +27,7 @@ def _git_diff() -> str:
 def _git_status_porcelain() -> str:
     proc = subprocess.run(
         ["git", "status", "--porcelain"],
-        cwd=SANDBOX_DIR,
+        cwd=PROJECT_DIR,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

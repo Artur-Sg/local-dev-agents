@@ -23,6 +23,15 @@ def load_actors_config() -> dict:
     return _read_json(ACTORS_CONFIG_PATH)
 
 
+def get_default_language() -> str:
+    language = load_actors_config().get("default_language", "ru")
+
+    if not isinstance(language, str) or not language.strip():
+        raise ValueError("actors.json must define a non-empty default_language")
+
+    return language
+
+
 def get_default_model() -> str:
     default_model = load_roles_config().get("default_model")
 
@@ -49,6 +58,7 @@ def get_actor_config(actor: str) -> dict:
         "display_name": display_name,
         "emoji": emoji,
         "voice": actor_config.get("voice", "").strip(),
+        "communication_prompt": actor_config.get("communication_prompt", "").strip(),
     }
 
 
@@ -157,6 +167,10 @@ def _read_prompt_file(path_str: str) -> str:
         raise ValueError(f"Empty role prompt: {path}")
 
     return content
+
+
+def read_config_prompt(path_str: str) -> str:
+    return _read_prompt_file(path_str)
 
 
 def build_system_prompt(role: str, capability: str) -> str:
