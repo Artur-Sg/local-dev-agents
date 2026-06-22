@@ -11,6 +11,11 @@ def load_project_config() -> dict:
             "profile": "python",
             "sandbox_dir": "sandboxes/test-fastapi",
             "project_dir": ".",
+            "test_runner": {
+                "type": "docker",
+                "image": "local-dev-agent-python:3.12",
+                "command": ["pytest", "-q"],
+            },
             "allowed_write_paths": [],
         }
 
@@ -63,3 +68,32 @@ def get_allowed_write_paths() -> list[str]:
         raise ValueError("allowed_write_paths must be a list of non-empty strings")
 
     return allowed_paths
+
+
+def get_test_runner() -> dict:
+    config = load_project_config()
+    test_runner = config.get("test_runner", {})
+
+    if not isinstance(test_runner, dict):
+        raise ValueError("test_runner must be an object")
+
+    runner_type = test_runner.get("type", "")
+    image = test_runner.get("image", "")
+    command = test_runner.get("command", [])
+
+    if runner_type != "docker":
+        raise ValueError(f"Unsupported test_runner type: {runner_type}")
+
+    if not isinstance(image, str) or not image.strip():
+        raise ValueError("test_runner.image must be a non-empty string")
+
+    if not isinstance(command, list) or not all(
+        isinstance(part, str) and part.strip() for part in command
+    ):
+        raise ValueError("test_runner.command must be a list of non-empty strings")
+
+    return {
+        "type": runner_type,
+        "image": image,
+        "command": command,
+    }

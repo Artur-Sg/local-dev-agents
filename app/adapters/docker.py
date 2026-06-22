@@ -4,18 +4,42 @@ from core.actions import RUN_TESTS
 from core.capabilities import RUN_TESTS as RUN_TESTS_CAPABILITY
 from core.events import AgentEvent, emit_event
 from core.roles import require_action
-from core.settings import get_sandbox_dir
+from core.settings import ROOT, get_project_dir, get_test_runner
 from core.workflow import Step, run_step
 from reporters.console import setup_console_reporting
 
-SANDBOX_DIR = get_sandbox_dir()
+PROJECT_DIR = get_project_dir()
+TEST_RUNNER = get_test_runner()
 
 
 def run_tests() -> tuple[int, str]:
     require_action(RUN_TESTS)
+
+    command = [
+        "docker",
+        "run",
+        "--rm",
+        "--network",
+        "none",
+        "--memory",
+        "1g",
+        "--cpus",
+        "1",
+        "--pids-limit",
+        "256",
+        "--security-opt",
+        "no-new-privileges=true",
+        "-v",
+        f"{PROJECT_DIR}:/workspace",
+        "-w",
+        "/workspace",
+        TEST_RUNNER["image"],
+        *TEST_RUNNER["command"],
+    ]
+
     proc = subprocess.run(
-        ["./run_tests.sh"],
-        cwd=SANDBOX_DIR,
+        command,
+        cwd=ROOT,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,

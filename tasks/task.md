@@ -17,7 +17,7 @@ Requirements:
 - Do not create app/.
 - Do not create landing-page/.
 - Do not create nested project directories.
-- Do not modify calc_app/, authorization/, main.py, test_main.py, Dockerfile, requirements.txt, or run_tests.sh.
+- Do not modify tooling/, calc_app/, authorization/, main.py, test_main.py, or requirements.txt.
 - Do not add JavaScript.
 - Do not use external images, CDN links, fonts, or remote assets.
 - Do not use img tags.

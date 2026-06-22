@@ -2,6 +2,14 @@
   "profile": "static-html",
   "sandbox_dir": "sandboxes/test-fastapi",
   "project_dir": ".",
+  "test_runner": {
+    "type": "docker",
+    "image": "local-dev-agent-python:3.12",
+    "command": [
+      "pytest",
+      "-q"
+    ]
+  },
   "allowed_write_paths": [
     "index.html",
     "styles.css",
