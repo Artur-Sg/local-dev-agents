@@ -12,3 +12,15 @@ __pycache__/
 
 # Agent sandboxes
 sandboxes/
+
+# Runtime sessions
+runs/*
+!runs/.gitkeep
+
+# Archived tasks keep only placeholders by default
+tasks/done/*
+!tasks/done/.gitkeep
+tasks/blocked/*
+!tasks/blocked/.gitkeep
+tasks/needs-human/*
+!tasks/needs-human/.gitkeep

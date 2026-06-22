@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from agents.developer import generate_solution
 from adapters.docker import run_tests
 from core.actions import CALL_MODEL, READ_TASK, RUN_TESTS, WRITE_FILES
@@ -5,11 +7,10 @@ from core.capabilities import GENERATE_SOLUTION, PREPARE_TASK, RUN_TESTS as RUN_
 from core.events import AgentEvent, emit_event
 from core.workflow import Step, clear_trace, run_step
 from file_blocks import write_file_blocks
-from pathlib import Path
 from reporters.console import setup_console_reporting
 from task_source import read_current_task
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def main() -> None:
@@ -76,7 +77,14 @@ def main() -> None:
         )
     )
     test_event_type = "tests_passed" if code == 0 else "tests_failed"
-    emit_event(AgentEvent(role="tester", type=test_event_type, payload={"output": output}, status="ok" if code == 0 else "failed"))
+    emit_event(
+        AgentEvent(
+            role="tester",
+            type=test_event_type,
+            payload={"output": output},
+            status="ok" if code == 0 else "failed",
+        )
+    )
 
     if code == 0:
         emit_event(AgentEvent(role="orchestrator", type="workflow_pass", status="ok"))

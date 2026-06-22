@@ -132,8 +132,13 @@ def get_visual_review_config() -> dict:
     if not isinstance(visual_review, dict):
         raise ValueError("visual_review must be an object")
 
+    enabled = visual_review.get("enabled", False)
+    checker = visual_review.get("checker", "").strip()
     files = visual_review.get("files", [])
     prompt = visual_review.get("prompt", "").strip()
+
+    if not isinstance(enabled, bool):
+        raise ValueError("visual_review.enabled must be a boolean")
 
     if not isinstance(files, list) or not all(
         isinstance(path, str) and path.strip() for path in files
@@ -141,6 +146,8 @@ def get_visual_review_config() -> dict:
         raise ValueError("visual_review.files must be a list of non-empty strings")
 
     return {
+        "enabled": enabled,
+        "checker": checker,
         "files": files,
         "prompt": prompt,
     }

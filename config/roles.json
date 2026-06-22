@@ -7,12 +7,15 @@
       "persona_prompt": "roles/project_lead/persona.md",
       "allowed_actions": [
         "read_task",
+        "call_model",
         "write_plan",
         "read_plan",
         "select_next_task",
         "read_status",
         "read_diff",
-        "read_changes"
+        "read_changes",
+        "read_test_output",
+        "read_review"
       ],
       "capabilities": {
         "prepare_task": {
@@ -26,6 +29,39 @@
           "prompt": "roles/project_lead/inspect_changes.md",
           "actions": [
             "read_changes"
+          ]
+        },
+        "decompose_task": {
+          "prompt": "roles/project_lead/decompose_task.md",
+          "actions": [
+            "call_model",
+            "read_task",
+            "write_plan"
+          ]
+        },
+        "select_next_task_queue": {
+          "prompt": "roles/project_lead/select_next_task.md",
+          "actions": [
+            "call_model",
+            "read_task",
+            "select_next_task"
+          ]
+        },
+        "select_next_subtask": {
+          "prompt": "roles/project_lead/select_next_subtask.md",
+          "actions": [
+            "call_model",
+            "read_plan",
+            "select_next_task"
+          ]
+        },
+        "decide_after_failure": {
+          "prompt": "roles/project_lead/decide_after_failure.md",
+          "actions": [
+            "call_model",
+            "read_test_output",
+            "read_review",
+            "select_next_task"
           ]
         }
       }
@@ -61,6 +97,14 @@
             "write_files"
           ]
         },
+        "fix_visual": {
+          "prompt": "roles/developer/fix_visual.md",
+          "actions": [
+            "call_model",
+            "read_task",
+            "write_files"
+          ]
+        },
         "fix_review": {
           "prompt": "roles/developer/fix_review.md",
           "actions": [
@@ -79,6 +123,8 @@
       "persona_prompt": "",
       "allowed_actions": [
         "run_tests",
+        "run_visual_check",
+        "read_files",
         "read_test_output"
       ],
       "capabilities": {
@@ -87,6 +133,13 @@
           "actions": [
             "run_tests",
             "read_test_output"
+          ]
+        },
+        "visual_check": {
+          "prompt": "",
+          "actions": [
+            "run_visual_check",
+            "read_files"
           ]
         }
       }

@@ -17,6 +17,8 @@
     ]
   },
   "visual_review": {
+    "enabled": true,
+    "checker": "static-html",
     "files": [
       "index.html",
       "styles.css",

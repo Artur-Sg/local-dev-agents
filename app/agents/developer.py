@@ -9,5 +9,9 @@ def fix_tests(prompt: str) -> str:
     return call_model(prompt)
 
 
+def fix_visual(prompt: str) -> str:
+    return call_model(prompt)
+
+
 def fix_review(prompt: str) -> str:
     return call_model(prompt)

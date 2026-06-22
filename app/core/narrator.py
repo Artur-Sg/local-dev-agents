@@ -1,7 +1,7 @@
 import json
 
 from adapters.ollama import request_model
-from core.capabilities import FIX_REVIEW, FIX_TESTS, GENERATE_SOLUTION
+from core.capabilities import FIX_REVIEW, FIX_TESTS, FIX_VISUAL, GENERATE_SOLUTION
 from core.events import AgentEvent, TeamMessage
 from core.roles import (
     get_actor_config,
@@ -99,12 +99,36 @@ class TeamNarrator:
         if event.type == "task_loaded":
             return "Задача прочитана и готова к передаче в работу."
 
+        if event.type == "task_planned":
+            count = event.payload.get("subtask_count", 0)
+            summary = event.payload.get("summary", "").strip()
+            if summary:
+                return f"План собран: {count} подзадач. {summary}"
+            return f"План собран: {count} подзадач."
+
+        if event.type == "subtask_selected":
+            title = event.payload.get("title", "").strip()
+            reason = event.payload.get("reason", "").strip()
+            if title and reason:
+                return f"Следом берём этап «{title}». Причина: {reason}"
+            if title:
+                return f"Следом берём этап «{title}»."
+            return "Выбран следующий этап работы."
+
+        if event.type == "subtask_completed":
+            title = event.payload.get("title", "").strip()
+            if title:
+                return f"Этап «{title}» закрыт."
+            return "Текущий этап закрыт."
+
         if event.type == "generation_started":
             capability = event.payload.get("capability")
             if capability == GENERATE_SOLUTION:
                 return "Начинаю реализацию задачи."
             if capability == FIX_TESTS:
                 return "Начинаю исправлять падение тестов."
+            if capability == FIX_VISUAL:
+                return "Начинаю править визуальные проблемы."
             if capability == FIX_REVIEW:
                 return "Начинаю правки по замечаниям ревью."
             return "Начинаю новый шаг генерации."
@@ -131,6 +155,22 @@ class TeamNarrator:
             output = event.payload.get("output", "")
             return f"FAIL — {self._summarize_test_output(output)}"
 
+        if event.type == "visual_check_started":
+            return "Проверяю визуальную структуру страницы."
+
+        if event.type == "visual_check_passed":
+            return event.payload.get("summary", "Визуальная проверка пройдена.")
+
+        if event.type == "visual_check_skipped":
+            return event.payload.get("summary", "Визуальная проверка пропущена для текущего профиля.")
+
+        if event.type == "visual_check_failed":
+            summary = event.payload.get("summary", "").strip()
+            details = event.payload.get("details", [])
+            if details:
+                return f"{summary} {details[0]}"
+            return summary or "Визуальная проверка не пройдена."
+
         if event.type == "review_started":
             return "Начинаю проверку изменений."
 
@@ -152,6 +192,12 @@ class TeamNarrator:
 
         if event.type == "workflow_final_fail":
             return "Не удалось довести задачу до успешного результата."
+
+        if event.type == "needs_human":
+            reason = event.payload.get("reason", "").strip()
+            if reason:
+                return f"Нужна помощь человека: {reason}"
+            return "Нужна помощь человека, дальше без уточнения идти рискованно."
 
         if event.type == "approval_diff":
             diff = event.payload.get("diff", "")

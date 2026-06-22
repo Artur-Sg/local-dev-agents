@@ -1,11 +1,17 @@
 PREPARE_TASK = "prepare_task"
 INSPECT_CHANGES = "inspect_changes"
+DECOMPOSE_TASK = "decompose_task"
+SELECT_NEXT_TASK_QUEUE = "select_next_task_queue"
+SELECT_NEXT_SUBTASK = "select_next_subtask"
+DECIDE_AFTER_FAILURE = "decide_after_failure"
 
 GENERATE_SOLUTION = "generate_solution"
 FIX_TESTS = "fix_tests"
+FIX_VISUAL = "fix_visual"
 FIX_REVIEW = "fix_review"
 
 RUN_TESTS = "run_tests"
+VISUAL_CHECK = "visual_check"
 REVIEW_CHANGES = "review_changes"
 
 APPROVE_CHANGES_CAPABILITY = "approve_changes"

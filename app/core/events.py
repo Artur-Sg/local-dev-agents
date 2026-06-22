@@ -1,6 +1,9 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Protocol
+import json
+
+from core.session import get_events_path
 
 
 @dataclass(frozen=True)
@@ -65,6 +68,21 @@ def get_narrator() -> Narrator:
 
 
 def emit_event(event: AgentEvent) -> None:
+    if event.task_id:
+        events_path = get_events_path(event.task_id)
+        events_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "role": event.role,
+            "type": event.type,
+            "message": event.message,
+            "payload": event.payload,
+            "task_id": event.task_id,
+            "status": event.status,
+            "created_at": event.created_at.isoformat(),
+        }
+        with events_path.open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
     if not _reporters:
         return
 
