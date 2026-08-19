@@ -10,16 +10,24 @@ from agents.project_lead import (
 )
 from agents.developer import fix_review, fix_tests, fix_visual, generate_solution
 from agents.reviewer import review_changes
-from adapters.docker import run_tests
+from adapters.test_runner import run_tests
 from adapters.git import get_git_review_text, has_uncommitted_changes
 from visual_qa import run_visual_check
 from core.actions import CALL_MODEL, READ_CHANGES, READ_STATUS, REVIEW_DIFF, RUN_TESTS, RUN_VISUAL_CHECK, WRITE_FILES
 from core.capabilities import DECIDE_AFTER_FAILURE, DECOMPOSE_TASK, FIX_REVIEW, FIX_TESTS, FIX_VISUAL, GENERATE_SOLUTION, PREPARE_TASK, REVIEW_CHANGES, RUN_TESTS as RUN_TESTS_CAPABILITY, SELECT_NEXT_SUBTASK, VISUAL_CHECK
 from core.events import AgentEvent, emit_event
-from core.session import RunSession, get_current_subtask, get_open_subtasks, is_terminal_status, save_session
+from core.run_models import RunSession, get_current_subtask, get_open_subtasks, is_terminal_status
+from core.run_store import save_run
 from core.settings import ROOT
+from core.runtime import use_run
+from core.verification_plan import (
+    build_verification_plan,
+    get_incremental_rules_text,
+    get_verification_plan_text,
+)
 from core.workflow import Step, run_step
 from file_blocks import write_file_blocks
+from project_context import build_allowed_paths_text, build_project_context
 from prompts import render_prompt
 
 
@@ -58,6 +66,30 @@ def _find_subtask_by_id(session: RunSession, subtask_id: str):
 
 
 def _build_subtask_prompt(session: RunSession, subtask) -> str:
+    verification_plan = _get_session_verification_plan(session)
+    lines = _build_subtask_outline(session, subtask)
+    lines.extend(
+        [
+            "",
+            "Allowed output paths:",
+            build_allowed_paths_text(),
+            "",
+            get_verification_plan_text(verification_plan),
+            "",
+            "Incremental delivery rules:",
+            get_incremental_rules_text(verification_plan),
+            "",
+            "Current project files:",
+            "",
+            build_project_context(),
+            "",
+            "Return only file blocks and use only the allowed output paths listed above.",
+        ]
+    )
+    return "\n".join(lines).strip()
+
+
+def _build_subtask_outline(session: RunSession, subtask) -> list[str]:
     lines = [
         session.task_text.strip(),
         "",
@@ -73,7 +105,7 @@ def _build_subtask_prompt(session: RunSession, subtask) -> str:
         lines.append("- acceptance criteria:")
         lines.extend(f"  - {item}" for item in subtask.acceptance_criteria)
 
-    return "\n".join(lines).strip()
+    return lines
 
 
 def _plan_subtasks(session: RunSession) -> None:
@@ -87,10 +119,10 @@ def _plan_subtasks(session: RunSession) -> None:
             args=(session.task_text,),
         )
     )
-    summary, subtasks = parse_task_plan(response)
+    summary, subtasks = parse_task_plan(response, session.task_text)
     session.plan_summary = summary
     session.subtasks = subtasks
-    save_session(session)
+    save_run(session)
     _emit_session_event(
         session,
         "orchestrator",
@@ -105,7 +137,7 @@ def _select_active_subtask(session: RunSession) -> None:
     if not open_subtasks:
         session.current_subtask_id = None
         session.status = "done"
-        save_session(session)
+        save_run(session)
         _emit_session_event(session, "orchestrator", "workflow_pass", status="ok")
         return
 
@@ -128,7 +160,7 @@ def _select_active_subtask(session: RunSession) -> None:
     subtask.status = "in_progress"
     session.current_prompt = _build_subtask_prompt(session, subtask)
     session.next_capability = GENERATE_SOLUTION
-    save_session(session)
+    save_run(session)
     _emit_session_event(
         session,
         "orchestrator",
@@ -181,7 +213,13 @@ def _set_rework_from_decision(
     review: str = "",
     visual_details: str = "",
 ) -> None:
-    original_task = _build_subtask_prompt(session, subtask) if subtask is not None else session.task_text
+    verification_plan = _get_session_verification_plan(session)
+    if subtask is not None:
+        original_task = "\n".join(_build_subtask_outline(session, subtask)).strip()
+    else:
+        original_task = session.task_text
+    project_context = build_project_context()
+    allowed_paths = build_allowed_paths_text()
 
     if decision == FIX_TESTS:
         prompt_input = test_output
@@ -190,12 +228,15 @@ def _set_rework_from_decision(
         session.current_prompt = render_prompt(
             "test_fix",
             original_task=original_task,
+            current_project_files=project_context,
+            allowed_paths=allowed_paths,
             test_output=prompt_input,
-            required_file_format=render_prompt("required_file_format"),
+            incremental_rules=get_incremental_rules_text(verification_plan),
+            required_file_format=render_prompt("required_file_format", allowed_paths=allowed_paths),
         )
         session.next_capability = FIX_TESTS
         session.status = "needs_rework"
-        save_session(session)
+        save_run(session)
         return
 
     if decision == FIX_VISUAL:
@@ -205,25 +246,31 @@ def _set_rework_from_decision(
         session.current_prompt = render_prompt(
             "visual_fix",
             original_task=original_task,
+            current_project_files=project_context,
+            allowed_paths=allowed_paths,
             visual_findings=findings,
-            required_file_format=render_prompt("required_file_format"),
+            incremental_rules=get_incremental_rules_text(verification_plan),
+            required_file_format=render_prompt("required_file_format", allowed_paths=allowed_paths),
         )
         session.next_capability = FIX_VISUAL
         session.status = "needs_rework"
-        save_session(session)
+        save_run(session)
         return
 
     if decision == FIX_REVIEW:
         session.current_prompt = render_prompt(
             "review_fix",
             original_task=original_task,
+            current_project_files=project_context,
+            allowed_paths=allowed_paths,
             diff=diff,
             review=review,
-            required_file_format=render_prompt("required_file_format"),
+            incremental_rules=get_incremental_rules_text(verification_plan),
+            required_file_format=render_prompt("required_file_format", allowed_paths=allowed_paths),
         )
         session.next_capability = FIX_REVIEW
         session.status = "needs_rework"
-        save_session(session)
+        save_run(session)
         return
 
     raise ValueError(f"Unsupported rework decision: {decision}")
@@ -247,6 +294,7 @@ def _apply_generated_files(
             )
         )
     except Exception as exc:
+        verification_plan = _get_session_verification_plan(session)
         _emit_session_event(
             session,
             "developer",
@@ -257,9 +305,15 @@ def _apply_generated_files(
         prompt = render_prompt(
             "format_fix",
             original_task=session.task_text,
+            current_project_files=build_project_context(),
+            allowed_paths=build_allowed_paths_text(),
             bad_answer=answer,
             error=str(exc),
-            required_file_format=render_prompt("required_file_format"),
+            incremental_rules=get_incremental_rules_text(verification_plan),
+            required_file_format=render_prompt(
+                "required_file_format",
+                allowed_paths=build_allowed_paths_text(),
+            ),
         )
         return None, prompt
 
@@ -288,10 +342,21 @@ def _prepare_session(session: RunSession) -> RunSession:
     )
 
     if dirty:
-        session.status = "blocked"
-        save_session(session)
+        session.human_summary = "Sandbox не чистый. Нужен approve или reject перед новым запуском."
+        session.status = "needs_human"
+        save_run(session)
         _emit_session_event(session, "orchestrator", "run_blocked_dirty", status="blocked")
         return session
+
+    session.artifacts["verification_plan"] = build_verification_plan()
+    save_run(session)
+    _emit_session_event(
+        session,
+        "orchestrator",
+        "verification_planned",
+        payload={"verification_plan": session.artifacts["verification_plan"]},
+        status="ok",
+    )
 
     _plan_subtasks(session)
     _select_active_subtask(session)
@@ -299,9 +364,20 @@ def _prepare_session(session: RunSession) -> RunSession:
         return session
 
     session.status = "executing"
-    save_session(session)
+    save_run(session)
     _emit_session_event(session, "orchestrator", "task_loaded", status="ok")
     return session
+
+
+def _get_session_verification_plan(session: RunSession) -> dict[str, object]:
+    plan = session.artifacts.get("verification_plan")
+
+    if isinstance(plan, dict) and plan:
+        return plan
+
+    plan = build_verification_plan()
+    session.artifacts["verification_plan"] = plan
+    return plan
 
 
 def run_once(session: RunSession) -> RunSession:
@@ -313,11 +389,11 @@ def run_once(session: RunSession) -> RunSession:
 
     if session.status == "needs_rework":
         session.status = "executing"
-        save_session(session)
+        save_run(session)
 
     if session.attempt_count >= session.max_attempts:
         session.status = "blocked"
-        save_session(session)
+        save_run(session)
         _emit_session_event(session, "orchestrator", "workflow_final_fail", status="failed")
         return session
 
@@ -355,7 +431,7 @@ def run_once(session: RunSession) -> RunSession:
         session.current_prompt = retry_prompt or session.current_prompt
         session.next_capability = capability
         session.status = "needs_rework"
-        save_session(session)
+        save_run(session)
         return session
 
     session.status = "testing"
@@ -385,7 +461,7 @@ def run_once(session: RunSession) -> RunSession:
         if decision == "needs_human":
             session.human_summary = reason
             session.status = "needs_human"
-            save_session(session)
+            save_run(session)
             _emit_session_event(
                 session,
                 "orchestrator",
@@ -441,7 +517,7 @@ def run_once(session: RunSession) -> RunSession:
         if decision == "needs_human":
             session.human_summary = reason
             session.status = "needs_human"
-            save_session(session)
+            save_run(session)
             _emit_session_event(
                 session,
                 "orchestrator",
@@ -503,7 +579,7 @@ def run_once(session: RunSession) -> RunSession:
         _select_active_subtask(session)
         if session.status != "done":
             session.status = "executing"
-            save_session(session)
+            save_run(session)
         return session
 
     _emit_session_event(
@@ -517,7 +593,7 @@ def run_once(session: RunSession) -> RunSession:
     if decision == "needs_human":
         session.human_summary = reason
         session.status = "needs_human"
-        save_session(session)
+        save_run(session)
         _emit_session_event(
             session,
             "orchestrator",
@@ -538,7 +614,8 @@ def run_once(session: RunSession) -> RunSession:
 
 
 def run_until_terminal(session: RunSession) -> RunSession:
-    while not is_terminal_status(session.status):
-        session = run_once(session)
+    with use_run(session.run_id):
+        while not is_terminal_status(session.status):
+            session = run_once(session)
 
     return session

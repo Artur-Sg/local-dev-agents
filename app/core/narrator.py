@@ -10,20 +10,24 @@ from core.roles import (
     get_role_config,
     read_config_prompt,
 )
+from env import get_narrator_use_model
 from prompts import render_prompt
 
 
 class TeamNarrator:
     def narrate(self, event: AgentEvent) -> TeamMessage | None:
-        role_config = get_role_config(event.role)
-        actor_config = get_actor_config(role_config["actor"])
-
         fact = self._describe_event(event)
         if fact is None:
             return None
 
-        text = self._generate_actor_message(event, role_config, actor_config, fact)
-        author = self._build_author(actor_config)
+        try:
+            role_config = get_role_config(event.role)
+            actor_config = get_actor_config(role_config["actor"])
+            text = self._generate_actor_message(event, role_config, actor_config, fact)
+            author = self._build_author(actor_config)
+        except Exception:
+            text = fact
+            author = event.role
 
         return TeamMessage(
             role=event.role,
@@ -48,6 +52,9 @@ class TeamNarrator:
     ) -> str:
         prompt_path = actor_config.get("communication_prompt", "")
         if not prompt_path:
+            return fact
+
+        if not get_narrator_use_model():
             return fact
 
         model = role_config["model"] or get_default_model()
@@ -162,7 +169,7 @@ class TeamNarrator:
             return event.payload.get("summary", "Визуальная проверка пройдена.")
 
         if event.type == "visual_check_skipped":
-            return event.payload.get("summary", "Визуальная проверка пропущена для текущего профиля.")
+            return event.payload.get("summary", "Визуальная проверка пропущена для текущей задачи.")
 
         if event.type == "visual_check_failed":
             summary = event.payload.get("summary", "").strip()

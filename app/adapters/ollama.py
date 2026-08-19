@@ -1,6 +1,6 @@
 import json
+import sys
 import urllib.request
-from pathlib import Path
 
 from core.roles import build_system_prompt, get_capability_config, get_role_config, require_action
 from core.runtime import get_current_capability, get_current_role
@@ -9,8 +9,6 @@ from core.capabilities import GENERATE_SOLUTION
 from core.workflow import Step, run_step
 from env import get_agent_http_timeout, get_model_api_url
 
-ROOT = Path(__file__).resolve().parents[2]
-TASK_PATH = ROOT / "tasks" / "task.md"
 MODEL_API_URL = get_model_api_url()
 HTTP_TIMEOUT = get_agent_http_timeout()
 
@@ -59,7 +57,9 @@ def call_model(prompt: str) -> str:
 
 
 def main() -> None:
-    prompt = TASK_PATH.read_text(encoding="utf-8")
+    prompt = sys.stdin.read().strip()
+    if not prompt:
+        raise SystemExit("Pass the user prompt via stdin.")
     answer = run_step(
         Step(
             name="call_model_once",

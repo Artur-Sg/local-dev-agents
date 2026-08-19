@@ -5,6 +5,11 @@ from core.settings import ROOT
 PROMPTS_DIR = ROOT / "config" / "prompts"
 
 
+class _SafeFormatDict(dict):
+    def __missing__(self, key: str) -> str:
+        return ""
+
+
 def get_prompt_path(name: str) -> Path:
     path = PROMPTS_DIR / f"{name}.md"
 
@@ -25,4 +30,4 @@ def get_prompt_template(name: str) -> str:
 
 def render_prompt(name: str, **values: str) -> str:
     template = get_prompt_template(name)
-    return template.format(**values).strip()
+    return template.format_map(_SafeFormatDict(values)).strip()

@@ -6,4 +6,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /workspace
 
-RUN pip install --no-cache-dir pytest
+RUN pip install --no-cache-dir \
+    beautifulsoup4 \
+    pytest

@@ -3,7 +3,8 @@ from datetime import datetime
 from typing import Any, Protocol
 import json
 
-from core.session import get_events_path
+from core.db import insert_event_record
+from core.run_repository import get_events_path
 
 
 @dataclass(frozen=True)
@@ -82,6 +83,17 @@ def emit_event(event: AgentEvent) -> None:
         }
         with events_path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        insert_event_record(
+            {
+                "run_id": event.task_id,
+                "role": event.role,
+                "type": event.type,
+                "message": event.message,
+                "payload_json": json.dumps(event.payload, ensure_ascii=False),
+                "status": event.status or "",
+                "created_at": event.created_at.isoformat(),
+            }
+        )
 
     if not _reporters:
         return

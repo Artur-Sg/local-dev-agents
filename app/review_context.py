@@ -1,18 +1,21 @@
 from fnmatch import fnmatch
-from pathlib import Path
 
-from core.settings import get_project_dir, get_visual_review_config
 from core.roles import read_config_prompt
+from core.settings import get_project_dir
+from core.verification_plan import get_active_visual_review
 
 
 def build_visual_review_context() -> str:
-    config = get_visual_review_config()
+    config = get_active_visual_review()
     file_patterns = config["files"]
     prompt_path = config["prompt"]
+    inline_prompt = config.get("prompt_text", "").strip()
 
     parts: list[str] = []
 
-    if prompt_path:
+    if inline_prompt:
+        parts.append(inline_prompt)
+    elif prompt_path:
         parts.append(read_config_prompt(prompt_path))
 
     project_dir = get_project_dir()

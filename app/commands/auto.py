@@ -2,32 +2,30 @@ from agents.project_lead import parse_task_selection, select_next_task
 from core.actions import CALL_MODEL, READ_TASK
 from core.capabilities import PREPARE_TASK, SELECT_NEXT_TASK_QUEUE
 from core.events import AgentEvent, emit_event
-from core.session import create_session, find_latest_resumable_session, save_session
+from core.run_store import create_run, find_latest_resumable_run, save_run
+from core.task_store import (
+    get_blockers,
+    list_tasks,
+    mark_in_progress,
+    move_to_blocked,
+    move_to_done,
+    move_to_inbox,
+    move_to_needs_human,
+    read_task_text,
+)
 from core.state_machine import run_until_terminal
 from core.workflow import Step, clear_trace, run_step
 from env import get_agent_max_attempts
 from reporters.console import setup_console_reporting
-from task_source import (
-    get_task_blockers,
-    get_task_id,
-    get_task_path,
-    get_task_relpath,
-    list_blocked_tasks,
-    list_inbox_tasks,
-    list_needs_human_tasks,
-    mark_task_in_progress,
-    move_task_to_blocked,
-    move_task_to_done,
-    move_task_to_inbox,
-    move_task_to_needs_human,
-    read_task_file,
-    read_task_metadata,
-)
 
 
 def _get_active_task_ids() -> set[str]:
-    active_paths = list_inbox_tasks() + list_blocked_tasks() + list_needs_human_tasks()
-    return {get_task_id(path) for path in active_paths}
+    records = (
+        list_tasks("inbox")
+        + list_tasks("blocked")
+        + list_tasks("needs-human")
+    )
+    return {str(record["task_id"]) for record in records}
 
 
 def _is_blocked_by_dependencies(task_id: str, blockers: list[str], active_task_ids: set[str]) -> bool:
@@ -44,9 +42,12 @@ def _revive_unblocked_tasks() -> list[str]:
     moved: list[str] = []
     active_ids = _get_active_task_ids()
 
-    for path in list_blocked_tasks():
-        task_id = get_task_id(path)
-        blockers = get_task_blockers(path)
+    for record in list_tasks("blocked"):
+        blockers = get_blockers(record)
+        if not blockers:
+            continue
+
+        task_id = str(record["task_id"])
         remaining_blockers = [
             blocker for blocker in blockers
             if blocker != task_id and blocker in active_ids
@@ -54,8 +55,7 @@ def _revive_unblocked_tasks() -> list[str]:
         if remaining_blockers:
             continue
 
-        moved_path = move_task_to_inbox(path)
-        moved.append(get_task_relpath(moved_path))
+        moved.append(move_to_inbox(record))
 
     return moved
 
@@ -65,13 +65,12 @@ def _build_task_candidates() -> tuple[list[dict[str, str]], list[str]]:
     blocked: list[str] = []
     active_task_ids = _get_active_task_ids()
 
-    for path in list_inbox_tasks():
-        relpath = get_task_relpath(path)
-        metadata = read_task_metadata(path)
-        task_id = metadata["task_id"]
-        blockers = get_task_blockers(path)
-        max_attempts = int(metadata.get("max_attempts", "0") or "0")
-        attempts = int(metadata.get("attempts", "0") or "0")
+    for metadata in list_tasks("inbox"):
+        relpath = str(metadata["task_file"])
+        task_id = str(metadata["task_id"])
+        blockers = get_blockers(metadata)
+        max_attempts = int(str(metadata.get("max_attempts", "0")) or "0")
+        attempts = int(str(metadata.get("attempts", "0")) or "0")
 
         if _is_blocked_by_dependencies(task_id, blockers, active_task_ids):
             blocked.append(relpath)
@@ -81,7 +80,7 @@ def _build_task_candidates() -> tuple[list[dict[str, str]], list[str]]:
             blocked.append(relpath)
             continue
 
-        preview = path.read_text(encoding="utf-8").strip().splitlines()
+        preview = read_task_text(relpath).strip().splitlines()
         summary = " ".join(line.strip() for line in preview[:4] if line.strip())[:240]
         candidates.append(
             {
@@ -145,7 +144,7 @@ def main() -> None:
                 )
             )
 
-        session = find_latest_resumable_session()
+        session = find_latest_resumable_run()
         if session is None:
             task_file, reason, blocked = _select_next_task_file()
             if task_file is None:
@@ -172,20 +171,19 @@ def main() -> None:
                 )
                 raise SystemExit(0)
 
-            task_path = get_task_path(task_file)
             task_text = run_step(
                 Step(
                     name="read_inbox_task",
                     action=READ_TASK,
                     role="orchestrator",
                     capability=PREPARE_TASK,
-                    func=read_task_file,
-                    args=(task_path,),
+                    func=read_task_text,
+                    args=(task_file,),
                 )
             )
-            session = create_session(task_text, get_agent_max_attempts(), task_file=task_file)
-            save_session(session)
-            mark_task_in_progress(task_path, session.run_id)
+            session = create_run(task_text, get_agent_max_attempts(), task_file=task_file)
+            save_run(session)
+            mark_in_progress({"task_file": task_file}, session.run_id)
             emit_event(
                 AgentEvent(
                     role="orchestrator",
@@ -208,54 +206,50 @@ def main() -> None:
 
         session = run_until_terminal(session)
         if session.status == "done" and session.task_file:
-            task_path = get_task_path(session.task_file)
-            if task_path.exists():
-                archived = move_task_to_done(task_path, session.run_id)
-                emit_event(
-                    AgentEvent(
-                        role="orchestrator",
-                        type="raw_output",
-                        payload={"output": f"Задача архивирована: {get_task_relpath(archived)}."},
-                        task_id=session.run_id,
-                        status="ok",
-                    )
+            archived = move_to_done(session.task_file, session.run_id)
+            emit_event(
+                AgentEvent(
+                    role="orchestrator",
+                    type="raw_output",
+                    payload={"output": f"Задача архивирована: {archived}."},
+                    task_id=session.run_id,
+                    status="ok",
                 )
+            )
             continue
 
         if session.status in {"blocked", "needs_human"}:
             if session.task_file:
-                task_path = get_task_path(session.task_file)
-                if task_path.exists():
-                    if session.status == "needs_human":
-                        archived = move_task_to_needs_human(
-                            task_path,
-                            session.run_id,
-                            session.human_summary or "Needs human intervention",
+                if session.status == "needs_human":
+                    archived = move_to_needs_human(
+                        session.task_file,
+                        session.run_id,
+                        session.human_summary or "Needs human intervention",
+                    )
+                    emit_event(
+                        AgentEvent(
+                            role="orchestrator",
+                            type="raw_output",
+                            payload={"output": f"Задача требует человека: {archived}."},
+                            task_id=session.run_id,
+                            status="blocked",
                         )
-                        emit_event(
-                            AgentEvent(
-                                role="orchestrator",
-                                type="raw_output",
-                                payload={"output": f"Задача требует человека: {get_task_relpath(archived)}."},
-                                task_id=session.run_id,
-                                status="blocked",
-                            )
+                    )
+                else:
+                    archived = move_to_blocked(
+                        session.task_file,
+                        session.run_id,
+                        session.human_summary or "Run blocked",
+                    )
+                    emit_event(
+                        AgentEvent(
+                            role="orchestrator",
+                            type="raw_output",
+                            payload={"output": f"Задача заблокирована: {archived}."},
+                            task_id=session.run_id,
+                            status="blocked",
                         )
-                    else:
-                        archived = move_task_to_blocked(
-                            task_path,
-                            session.run_id,
-                            session.human_summary or "Run blocked",
-                        )
-                        emit_event(
-                            AgentEvent(
-                                role="orchestrator",
-                                type="raw_output",
-                                payload={"output": f"Задача заблокирована: {get_task_relpath(archived)}."},
-                                task_id=session.run_id,
-                                status="blocked",
-                            )
-                        )
+                    )
             continue
 
 

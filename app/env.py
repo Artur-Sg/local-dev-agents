@@ -8,6 +8,7 @@ DEFAULT_MODEL_API_URL = "http://127.0.0.1:11434/api/chat"
 DEFAULT_MODEL_NAME = "qwen2.5-coder:7b"
 DEFAULT_AGENT_MAX_ATTEMPTS = 5
 DEFAULT_AGENT_HTTP_TIMEOUT = 180
+DEFAULT_NARRATOR_USE_MODEL = False
 
 _ENV_LOADED = False
 
@@ -51,6 +52,11 @@ def get_env_int(name: str, default: int) -> int:
         return default
 
 
+def get_env_bool(name: str, default: bool) -> bool:
+    value = get_env(name, "1" if default else "0").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
 def get_model_api_url() -> str:
     return get_env("MODEL_API_URL", DEFAULT_MODEL_API_URL)
 
@@ -65,3 +71,7 @@ def get_agent_http_timeout() -> int:
 
 def get_agent_max_attempts() -> int:
     return get_env_int("AGENT_MAX_ATTEMPTS", DEFAULT_AGENT_MAX_ATTEMPTS)
+
+
+def get_narrator_use_model() -> bool:
+    return get_env_bool("NARRATOR_USE_MODEL", DEFAULT_NARRATOR_USE_MODEL)

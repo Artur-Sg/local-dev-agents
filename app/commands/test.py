@@ -1,4 +1,4 @@
-from adapters.docker import main
+from adapters.test_runner import main
 
 
 if __name__ == "__main__":

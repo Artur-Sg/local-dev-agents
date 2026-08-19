@@ -1,0 +1,209 @@
+{
+  "run": {
+    "mode": "prepare",
+    "project_reset": "preserve",
+    "max_attempts": 5,
+    "reset_tasks": true,
+    "reset_runs": true,
+    "init_git": true
+  },
+  "project": {
+    "name": "UI Component Lab",
+    "path": "sandboxes/ui-component-lab",
+    "existing": true
+  },
+  "stack": {
+    "id": "custom-web-ui",
+    "workspace": {
+      "allowed_write_paths": [
+        "index.html",
+        "styles.css",
+        "scripts.js"
+      ]
+    },
+    "runner": {
+      "type": "local",
+      "image": "",
+      "setup_commands": [],
+      "command": [
+        "python3",
+        "tests/test_ui_library.py"
+      ]
+    },
+    "bootstrap_files": [
+      {
+        "target": "tests/test_ui_library.py",
+        "content": "from pathlib import Path\nimport re\nimport sys\n\n\nROOT = Path(__file__).resolve().parents[1]\nINDEX_PATH = ROOT / \"index.html\"\nSTYLES_PATH = ROOT / \"styles.css\"\nSCRIPTS_PATH = ROOT / \"scripts.js\"\n\n\ndef _read(path: Path) -> str:\n    return path.read_text(encoding=\"utf-8\")\n\n\ndef test_required_files_exist() -> None:\n    assert INDEX_PATH.exists(), \"index.html is missing\"\n    assert STYLES_PATH.exists(), \"styles.css is missing\"\n    assert SCRIPTS_PATH.exists(), \"scripts.js is missing\"\n\n\ndef test_index_has_required_sections() -> None:\n    html = _read(INDEX_PATH)\n\n    assert 'data-section=\"style-catalog\"' in html\n    assert 'data-section=\"component-showcase\"' in html\n    assert 'data-section=\"usage\"' in html\n    assert 'src=\"scripts.js\"' in html\n\n\ndef test_index_exposes_enough_presets_and_components() -> None:\n    html = _read(INDEX_PATH)\n\n    style_ids = set(re.findall(r'data-style-id=\"([^\"]+)\"', html))\n    assert len(style_ids) >= 6\n\n    button_count = len(re.findall(r'class=\"[^\"]*ui-button[^\"]*\"', html))\n    input_count = len(re.findall(r'class=\"[^\"]*ui-input[^\"]*\"', html))\n    assert button_count >= 6\n    assert input_count >= 6\n\n\ndef test_styles_expose_configuration_surface() -> None:\n    css = _read(STYLES_PATH)\n\n    assert \"--ui-\" in css\n    assert \"display: grid\" in css\n    assert \"border-radius\" in css\n    assert \"box-shadow\" in css\n    assert \"@media\" in css\n    assert len(re.findall(r'\\\\[data-style-id=\"[^\"]+\"\\\\]', css)) >= 6\n\n\ndef test_scripts_drive_local_interaction() -> None:\n    js = _read(SCRIPTS_PATH)\n\n    assert \"addEventListener\" in js\n    assert \"data-style-id\" in js\n\n\ndef main() -> int:\n    tests = [\n        test_required_files_exist,\n        test_index_has_required_sections,\n        test_index_exposes_enough_presets_and_components,\n        test_styles_expose_configuration_surface,\n        test_scripts_drive_local_interaction,\n    ]\n\n    for test in tests:\n        test()\n\n    print(f\"{len(tests)} checks passed\")\n    return 0\n\n\nif __name__ == \"__main__\":\n    try:\n        raise SystemExit(main())\n    except AssertionError as exc:\n        print(f\"ASSERTION FAILED: {exc}\")\n        raise SystemExit(1)\n"
+      }
+    ]
+  },
+  "task": {
+    "id": "ui-library-starter",
+    "title": "Continue UI library starter with configurable style presets",
+    "priority": "high",
+    "kind": "frontend",
+    "description": "Continue developing the existing `ui-component-lab` starter into a more believable first release of a configurable UI library.\n\nCurrent state:\n- the project already has a starter page\n- it already includes a style catalog, a live preview area, a comparison grid, and local `scripts.js`\n- it already demonstrates 6 presets and basic button/input examples\n\nGoal for this iteration:\n- keep the current starter direction, but make it feel much closer to a real UI library instead of a static mock\n- improve the button and input primitives\n- strengthen the style configuration story\n- make style switching and customization feel intentional and reusable\n\nCore product goal:\n- this should feel like the beginning of a reusable component library, not just a showcase page\n- button and input should read as real reusable primitives\n- the system should expose recognizable configuration hooks through classes, data attributes, CSS variables, or a small local JS controller\n- the page should make it obvious how a developer chooses a style preset and how that preset affects components\n\nSupported style catalog:\nYou do not need to implement every style below, but you must support at least 6 distinct presets chosen from this list:\n- Liquid Glass\n- Generative & Situational UX\n- Calm UI\n- Narrative UI\n- Flat Design 2.0\n- Bento Grid\n- Minimalism\n- Neo-Brutalism\n- Anti-Perfect / Imperfect UI\n- Glassmorphism\n- Neumorphism\n- Claymorphism\n- Light Skeuomorphism\n- Skeuomorphism\n- Aurora UI\n- Cyberpunk / Sci-Fi UI\n- Pixel Art UI\n- Editorial UI\n- Retro-Futurism / Y2K UI\n\nImplementation requirements:\n- continue from the existing scaffold instead of replacing it with an unrelated page\n- small vanilla JavaScript is allowed for preset switching, preview controls, and lightweight demo interaction\n- no external images, fonts, CDN links, or remote assets\n- no backend code\n- no nested project directories\n- no unrelated files\n- use semantic HTML where possible\n- use CSS variables for at least part of the configuration system\n- keep the demo visually organized and responsive\n\nLibrary requirements:\n- keep button and input as the first-class primitives of the library\n- preserve at least 6 presets, but make them feel more distinct and more configurable\n- add a clearer configuration surface for the library, for example preset switching, size or density controls, variant controls, or token-driven customization\n- make the live preview meaningfully respond to configuration choices\n- the usage section should explain how a developer applies presets and hooks into the configuration system\n- this iteration must make a noticeable step forward, not just polish spacing or card chrome\n- add at least one meaningful library capability beyond the current baseline, such as variant switching, size or density controls, state previews, token controls, or stronger preset-specific behavior\n- make the presets feel substantially different in the components themselves, not only in background cards or labels\n\nDemo requirements:\n- include a visible style catalog section\n- each available preset must have a stable identifier via data-style-id\n- include at least one button example and one input example for each showcased style direction, or a compact matrix that clearly demonstrates both components across the available styles\n- include a short usage/configuration section that explains how a developer would apply the styles\n- if JavaScript is used, keep it in a local scripts.js file with no external dependencies\n\nTesting requirements:\n- trusted verification files are listed below\n- the result should continue satisfying the current structural and visual checks",
+    "constraints": [
+      "You may change only index.html, styles.css, and scripts.js",
+      "Do not modify unrelated files"
+    ],
+    "done_when": [
+      "the starter feels much closer to a real UI library instead of a static mock",
+      "button and input are stronger reusable primitives",
+      "the style configuration story is clearer and more intentional",
+      "the result continues satisfying structural and visual checks"
+    ]
+  },
+  "verification": {
+    "strategy": "task-driven",
+    "allow_generated_tests": true,
+    "allow_visual_checks": true,
+    "trusted_paths": [
+      "tests/test_ui_library.py"
+    ],
+    "must_not_modify": [
+      "tests/test_ui_library.py"
+    ],
+    "visual_review": {
+      "enabled": true,
+      "files": [
+        "index.html",
+        "styles.css",
+        "scripts.js"
+      ],
+      "prompt": "",
+      "prompt_text": "Judge the result as a believable, reusable web interface rather than a one-off mock.\n\nPay attention to:\n- whether the output behaves like a real user-facing web project instead of placeholder markup\n- whether HTML structure and CSS organization are coherent and maintainable\n- whether reusable primitives or reusable page patterns are clearly expressed\n- whether JavaScript, if present, improves interaction instead of acting like dead decoration\n- whether the implementation respects the stated task and constraints\n- whether the iteration meaningfully improves the existing scaffold instead of replacing it with something unrelated\n- whether the author tried to game verification by weakening or rewriting trusted checks\n\nDo not demand production completeness.\nRequest changes only for real quality, UX, structural, or task-alignment problems.",
+      "success_summary": "Визуальная проверка UI library пройдена: каталог и демонстрация компонентов выглядят состоятельно.",
+      "failure_summary": "Визуальная проверка UI library не пройдена: библиотека пока выглядит сырой или неполной.",
+      "rules": [
+        {
+          "type": "file_exists",
+          "path": "index.html",
+          "metric": "index_exists",
+          "message": "Не найден index.html, визуальную проверку UI library выполнить нельзя."
+        },
+        {
+          "type": "file_exists",
+          "path": "styles.css",
+          "metric": "styles_exists",
+          "message": "Не найден styles.css, визуальную проверку UI library выполнить нельзя."
+        },
+        {
+          "type": "file_exists",
+          "path": "scripts.js",
+          "metric": "scripts_exists",
+          "message": "Не найден scripts.js, интерактивная демонстрация библиотеки отсутствует."
+        },
+        {
+          "type": "contains",
+          "path": "index.html",
+          "value": "data-section=\"style-catalog\"",
+          "metric": "has_catalog",
+          "message": "Не найден style catalog section."
+        },
+        {
+          "type": "regex_count_at_least",
+          "path": "index.html",
+          "pattern": "data-style-id=\"[^\"]+\"",
+          "min": 6,
+          "metric": "style_id_count",
+          "message": "Недостаточно style preset identifiers, нужно минимум 6."
+        },
+        {
+          "type": "regex_count_at_least",
+          "path": "index.html",
+          "pattern": "class=\"[^\"]*ui-button[^\"]*\"",
+          "min": 6,
+          "metric": "button_count",
+          "message": "Недостаточно button examples, нужно минимум 6."
+        },
+        {
+          "type": "regex_count_at_least",
+          "path": "index.html",
+          "pattern": "class=\"[^\"]*ui-input[^\"]*\"",
+          "min": 6,
+          "metric": "input_count",
+          "message": "Недостаточно input examples, нужно минимум 6."
+        },
+        {
+          "type": "contains",
+          "path": "index.html",
+          "value": "data-section=\"component-showcase\"",
+          "metric": "has_component_showcase",
+          "message": "Не найден component showcase section."
+        },
+        {
+          "type": "contains",
+          "path": "index.html",
+          "value": "data-section=\"usage\"",
+          "metric": "has_usage",
+          "message": "Не найден usage/configuration section."
+        },
+        {
+          "type": "contains",
+          "path": "index.html",
+          "value": "src=\"scripts.js\"",
+          "metric": "has_script_link",
+          "message": "index.html не подключает scripts.js."
+        },
+        {
+          "type": "contains",
+          "path": "styles.css",
+          "value": "--ui-",
+          "metric": "has_css_vars",
+          "message": "Не найдены CSS variables для конфигурации библиотеки."
+        },
+        {
+          "type": "regex_count_at_least",
+          "path": "styles.css",
+          "pattern": "\\[data-style-id=\"[^\"]+\"\\]",
+          "min": 6,
+          "metric": "preset_selector_count",
+          "message": "Недостаточно preset-specific CSS selectors, стили библиотечных пресетов почти не описаны."
+        },
+        {
+          "type": "contains",
+          "path": "styles.css",
+          "value": "display: grid",
+          "metric": "has_grid",
+          "message": "Не найден display: grid для организации каталога или витрины."
+        },
+        {
+          "type": "contains",
+          "path": "styles.css",
+          "value": "border-radius",
+          "metric": "has_radius",
+          "message": "Не найдено управление формой компонентов через border-radius."
+        },
+        {
+          "type": "contains",
+          "path": "styles.css",
+          "value": "box-shadow",
+          "metric": "has_shadow",
+          "message": "Не найдено управление глубиной или поверхностью через box-shadow."
+        },
+        {
+          "type": "contains",
+          "path": "styles.css",
+          "value": "@media",
+          "metric": "has_media",
+          "message": "Не найден адаптивный @media-блок."
+        },
+        {
+          "type": "contains",
+          "path": "scripts.js",
+          "value": "addEventListener",
+          "metric": "has_event_listener",
+          "message": "scripts.js не содержит обработчиков взаимодействия."
+        },
+        {
+          "type": "contains",
+          "path": "scripts.js",
+          "value": "data-style-id",
+          "metric": "script_references_style_id",
+          "message": "scripts.js не работает с переключением style presets."
+        }
+      ]
+    }
+  }
+}

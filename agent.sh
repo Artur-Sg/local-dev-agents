@@ -8,6 +8,9 @@ case "${1:-}" in
   auto)
     PYTHONPATH=app python3 app/commands/auto.py
     ;;
+  kickoff)
+    PYTHONPATH=app python3 app/commands/kickoff.py
+    ;;
   once)
     PYTHONPATH=app python3 app/commands/once.py
     ;;
@@ -23,6 +26,9 @@ case "${1:-}" in
   backlog)
     PYTHONPATH=app python3 app/commands/status.py backlog
     ;;
+  recover)
+    PYTHONPATH=app python3 app/commands/status.py recover
+    ;;
   status)
     PYTHONPATH=app python3 app/commands/status.py run latest
     ;;
@@ -36,9 +42,11 @@ case "${1:-}" in
     echo "Usage:"
     echo "  ./agent.sh run"
     echo "  ./agent.sh auto"
+    echo "  ./agent.sh kickoff"
     echo "  ./agent.sh once"
     echo "  ./agent.sh diff"
     echo "  ./agent.sh backlog"
+    echo "  ./agent.sh recover"
     echo "  ./agent.sh status"
     echo "  ./agent.sh run-status [run_id|latest]"
     echo "  ./agent.sh test"

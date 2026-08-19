@@ -1,0 +1,65 @@
+{
+  "run": {
+    "mode": "auto",
+    "project_reset": "preserve",
+    "max_attempts": 5,
+    "reset_tasks": true,
+    "reset_runs": true,
+    "init_git": true
+  },
+  "project": {
+    "name": "My Project",
+    "path": "sandboxes/my-project",
+    "existing": true
+  },
+  "stack": {
+    "id": "custom-stack",
+    "workspace": {
+      "allowed_write_paths": [
+        "**/*.html",
+        "**/*.css",
+        "**/*.js",
+        "tests/**/*.py"
+      ]
+    },
+    "runner": {
+      "type": "docker",
+      "image": "local-dev-agent-python:3.12",
+      "setup_commands": [],
+      "command": [
+        "pytest",
+        "-q"
+      ]
+    },
+    "bootstrap_files": []
+  },
+  "task": {
+    "id": "my-project-task",
+    "title": "Describe your task",
+    "priority": "normal",
+    "kind": "general",
+    "description": "Describe what should be built or improved.",
+    "constraints": [
+      "Add any important constraints here"
+    ],
+    "done_when": [
+      "Describe what success looks like"
+    ]
+  },
+  "verification": {
+    "strategy": "task-driven",
+    "allow_generated_tests": true,
+    "allow_visual_checks": true,
+    "trusted_paths": [],
+    "must_not_modify": [],
+    "visual_review": {
+      "enabled": false,
+      "files": [],
+      "prompt": "",
+      "prompt_text": "",
+      "success_summary": "",
+      "failure_summary": "",
+      "rules": []
+    }
+  }
+}

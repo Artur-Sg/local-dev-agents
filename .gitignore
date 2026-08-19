@@ -16,6 +16,11 @@ sandboxes/
 # Runtime sessions
 runs/*
 !runs/.gitkeep
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+data/*.json
+data/*.jsonl
 
 # Archived tasks keep only placeholders by default
 tasks/done/*

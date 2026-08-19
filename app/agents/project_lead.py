@@ -1,7 +1,8 @@
 import json
+import re
 
 from adapters.ollama import call_model
-from core.session import Subtask
+from core.run_models import Subtask
 
 
 def decompose_task(task_text: str) -> str:
@@ -97,8 +98,51 @@ def _extract_json_block(text: str) -> str:
     return stripped[start : end + 1]
 
 
-def parse_task_plan(text: str) -> tuple[str, list[Subtask]]:
-    data = json.loads(_extract_json_block(text))
+def _strip_trailing_commas(text: str) -> str:
+    return re.sub(r",(\s*[}\]])", r"\1", text)
+
+
+def _load_json_object(text: str) -> dict:
+    raw = _extract_json_block(text)
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        repaired = _strip_trailing_commas(raw)
+        data = json.loads(repaired)
+
+    if not isinstance(data, dict):
+        raise ValueError("Project lead response must decode to a JSON object")
+
+    return data
+
+
+def _build_fallback_plan(task_text: str) -> tuple[str, list[Subtask]]:
+    first_line = next((line.strip() for line in task_text.splitlines() if line.strip()), "Complete the task")
+    summary = first_line[:160]
+    subtask = Subtask(
+        id="implement_task",
+        title="Implement the requested task",
+        description=summary,
+        status="todo",
+        attempts=0,
+        acceptance_criteria=[
+            "The requested deliverable is implemented.",
+            "Project checks pass.",
+            "The result matches the task requirements.",
+        ],
+    )
+    return summary, [subtask]
+
+
+def parse_task_plan(text: str, task_text: str = "") -> tuple[str, list[Subtask]]:
+    try:
+        data = _load_json_object(text)
+    except Exception:
+        if task_text:
+            return _build_fallback_plan(task_text)
+        raise
+
     summary = str(data.get("summary", "")).strip()
     raw_subtasks = data.get("subtasks", [])
 
@@ -138,7 +182,7 @@ def parse_task_plan(text: str) -> tuple[str, list[Subtask]]:
 
 
 def parse_subtask_selection(text: str) -> tuple[str, str]:
-    data = json.loads(_extract_json_block(text))
+    data = _load_json_object(text)
     subtask_id = str(data.get("subtask_id", "")).strip()
     reason = str(data.get("reason", "")).strip()
 
@@ -149,7 +193,7 @@ def parse_subtask_selection(text: str) -> tuple[str, str]:
 
 
 def parse_task_selection(text: str) -> tuple[str, str]:
-    data = json.loads(_extract_json_block(text))
+    data = _load_json_object(text)
     task_file = str(data.get("task_file", "")).strip()
     reason = str(data.get("reason", "")).strip()
 
@@ -160,7 +204,7 @@ def parse_task_selection(text: str) -> tuple[str, str]:
 
 
 def parse_failure_decision(text: str, allowed_decisions: list[str]) -> tuple[str, str]:
-    data = json.loads(_extract_json_block(text))
+    data = _load_json_object(text)
     decision = str(data.get("decision", "")).strip()
     reason = str(data.get("reason", "")).strip()
 

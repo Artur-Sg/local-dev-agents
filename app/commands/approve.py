@@ -30,6 +30,17 @@ def main() -> None:
         )
     )
 
+    if not changes.strip():
+        emit_event(
+            AgentEvent(
+                role="human_operator",
+                type="raw_output",
+                payload={"output": "Подтверждать нечего: в sandbox нет изменений."},
+                status="ok",
+            )
+        )
+        return
+
     run_step(
         Step(
             name="approve_request",

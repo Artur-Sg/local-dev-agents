@@ -1,21 +1,25 @@
 import sys
 import json
-from pathlib import Path
 
 from adapters.git import main as git_main
-from core.session import find_latest_resumable_session, find_session, get_current_subtask, get_events_path, list_sessions
-from task_source import list_blocked_tasks, list_inbox_tasks, list_needs_human_tasks, read_task_metadata
+from core.db import list_event_records
+from core.run_store import (
+    find_latest_resumable_run,
+    find_run,
+    get_run_current_subtask,
+    get_run_events_path,
+    list_runs,
+)
+from core.task_store import list_tasks, recover_tasks_from_files
 
 
-def _print_task_group(title: str, paths) -> None:
+def _print_task_group(title: str, items) -> None:
     print(title)
-    items = list(paths)
     if not items:
         print("  - empty")
         return
 
-    for path in items:
-        metadata = read_task_metadata(path)
+    for metadata in items:
         parts = [metadata["task_id"], metadata["title"]]
 
         if metadata["priority"]:
@@ -38,13 +42,13 @@ def _print_task_group(title: str, paths) -> None:
 
 def _print_runs() -> None:
     print("Runs")
-    sessions = list_sessions()
+    sessions = list_runs()
     if not sessions:
         print("  - empty")
         return
 
     for session in sessions:
-        current_subtask = get_current_subtask(session)
+        current_subtask = get_run_current_subtask(session)
         parts = [session.run_id, f"status={session.status}"]
 
         if session.task_file:
@@ -59,34 +63,43 @@ def _print_runs() -> None:
 
 
 def show_backlog() -> None:
-    _print_task_group("Inbox", list_inbox_tasks())
-    _print_task_group("Blocked", list_blocked_tasks())
-    _print_task_group("Needs Human", list_needs_human_tasks())
+    _print_task_group("Inbox", list_tasks("inbox"))
+    _print_task_group("Blocked", list_tasks("blocked"))
+    _print_task_group("Needs Human", list_tasks("needs-human"))
     _print_runs()
 
 
+def recover_backlog() -> None:
+    recover_tasks_from_files()
+    print("Recovered task records from tasks/* mirror.")
+
+
 def _tail_events(run_id: str, limit: int = 10) -> list[dict]:
-    events_path = get_events_path(run_id)
+    events = list_event_records(run_id, limit)
+    if events:
+        return events
+
+    events_path = get_run_events_path(run_id)
     if not events_path.exists():
         return []
 
     lines = events_path.read_text(encoding="utf-8").splitlines()
-    events: list[dict] = []
+    fallback_events: list[dict] = []
     for line in lines[-limit:]:
         line = line.strip()
         if not line:
             continue
-        events.append(json.loads(line))
-    return events
+        fallback_events.append(json.loads(line))
+    return fallback_events
 
 
 def _print_run_details(run_id: str) -> int:
-    session = find_session(run_id)
+    session = find_run(run_id)
     if session is None:
         print(f"Run not found: {run_id}")
         return 1
 
-    current_subtask = get_current_subtask(session)
+    current_subtask = get_run_current_subtask(session)
     print(f"Run: {session.run_id}")
     print(f"Status: {session.status}")
     print(f"Task: {session.task_file or '-'}")
@@ -136,9 +149,9 @@ def _print_run_details(run_id: str) -> int:
 def show_run(run_id: str | None) -> int:
     target_run_id = run_id
     if target_run_id in {None, "latest"}:
-        session = find_latest_resumable_session()
+        session = find_latest_resumable_run()
         if session is None:
-            sessions = list_sessions()
+            sessions = list_runs()
             if not sessions:
                 print("No runs found.")
                 return 0
@@ -153,6 +166,8 @@ def main() -> None:
     match sys.argv[1:]:
         case ["backlog"]:
             show_backlog()
+        case ["recover"]:
+            recover_backlog()
         case ["run"]:
             raise SystemExit(show_run("latest"))
         case ["run", run_id]:
